@@ -1,6 +1,8 @@
-cat > bootstrap_pi4.sh <<'EOF'
 #!/usr/bin/env bash
 set -Eeuo pipefail
+
+# Fail nicely with an error message
+trap 'code=$?; echo "[ERROR] $(date +"%F %T") Script failed at line $LINENO with exit code $code"; exit $code' ERR
 
 log() { printf "\n[%s] %s\n" "$(date +'%F %T')" "$*"; }
 
@@ -31,7 +33,7 @@ main() {
 
   log "Updating and upgrading packages…"
   sudo apt-get update
-  sudo DEBIAN_FRONTEND=noninteractive apt-get -y upgrade
+  sudo DEBIAN_FRONTEND=noninteractive apt-get -yq upgrade
 
   log "Ensuring git is installed…"
   sudo apt-get install -y git
@@ -76,6 +78,3 @@ main() {
 }
 
 main "$@"
-EOF
-
-chmod +x bootstrap_pi4.sh
