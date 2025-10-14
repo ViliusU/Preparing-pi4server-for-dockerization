@@ -38,20 +38,7 @@ main() {
   log "Ensuring git is installed…"
   sudo apt-get install -y git
 
-  # 1) Fan control
-  local FAN_REPO_URL="https://github.com/ViliusU/Raspberry_Pi_Fan_Control_Setup_for_StromPi3_Case.git"
-  local FAN_DEST="${WORKDIR}/Raspberry_Pi_Fan_Control_Setup_for_StromPi3_Case"
-  clone_or_update "$FAN_REPO_URL" "$FAN_DEST"
-  if [ -f "${FAN_DEST}/fan_control_install.sh" ]; then
-    log "Running fan_control_install.sh…"
-    chmod +x "${FAN_DEST}/fan_control_install.sh"
-    sudo bash "${FAN_DEST}/fan_control_install.sh"
-  else
-    log "ERROR: fan_control_install.sh not found in ${FAN_DEST}"
-    exit 1
-  fi
-
-  # 2) Attach external disk (NTFS)
+  # 1) Attach external disk (NTFS)
   local DISK_REPO_URL="https://github.com/ViliusU/attach-external-disk-drive-on-raspberry-pi.git"
   local DISK_DEST="${WORKDIR}/attach-external-disk-drive-on-raspberry-pi"
   clone_or_update "$DISK_REPO_URL" "$DISK_DEST"
@@ -64,13 +51,26 @@ main() {
     exit 1
   fi
 
-  # 3) Docker install from this repo
+  # 2) Docker install from this repo
   if [ -f "${SCRIPT_DIR}/install_docker.sh" ]; then
     log "Running install_docker.sh from current repo…"
     chmod +x "${SCRIPT_DIR}/install_docker.sh"
     sudo bash "${SCRIPT_DIR}/install_docker.sh"
   else
     log "WARNING: install_docker.sh not found in ${SCRIPT_DIR}; skipping."
+  fi
+
+  # 3) Fan control
+  local FAN_REPO_URL="https://github.com/ViliusU/Raspberry_Pi_Fan_Control_Setup_for_StromPi3_Case.git"
+  local FAN_DEST="${WORKDIR}/Raspberry_Pi_Fan_Control_Setup_for_StromPi3_Case"
+  clone_or_update "$FAN_REPO_URL" "$FAN_DEST"
+  if [ -f "${FAN_DEST}/fan_control_install.sh" ]; then
+    log "Running fan_control_install.sh…"
+    chmod +x "${FAN_DEST}/fan_control_install.sh"
+    sudo bash "${FAN_DEST}/fan_control_install.sh"
+  else
+    log "ERROR: fan_control_install.sh not found in ${FAN_DEST}"
+    exit 1
   fi
 
   log "All done ✅"
