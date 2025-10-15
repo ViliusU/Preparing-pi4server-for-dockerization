@@ -39,13 +39,18 @@ main() {
   sudo apt install git -y
 
   # 1) Docker install from this repo
-#  if [ -f "${SCRIPT_DIR}/install_docker.sh" ]; then
-#    log "Running install_docker.sh from current repo…"
-#    chmod +x "${SCRIPT_DIR}/install_docker.sh"
-#    sudo bash "${SCRIPT_DIR}/install_docker.sh"
-#  else
-#    log "WARNING: install_docker.sh not found in ${SCRIPT_DIR}; skipping."
-#  fi
+  if [ -f "${SCRIPT_DIR}/install_docker.sh" ]; then
+  log "Running install_docker.sh from current repo…"
+  chmod +x "${SCRIPT_DIR}/install_docker.sh"
+
+  # Determine the real non-root login user (works whether or not this script was started with sudo)
+  REAL_USER="$(logname 2>/dev/null || echo "${SUDO_USER:-$USER}")"
+
+  # Pass it explicitly to the installer so it never adds 'root' by mistake
+  sudo env TARGET_USER="$REAL_USER" bash "${SCRIPT_DIR}/install_docker.sh"
+  else
+    log "WARNING: install_docker.sh not found in ${SCRIPT_DIR}; skipping."
+  fi
 
   # 2) Attach external disk (NTFS)
   local DISK_REPO_URL="https://github.com/ViliusU/attach-external-disk-drive-on-raspberry-pi.git"
