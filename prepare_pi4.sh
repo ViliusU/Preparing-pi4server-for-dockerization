@@ -36,7 +36,7 @@ main() {
   sudo DEBIAN_FRONTEND=noninteractive apt-get -yq upgrade
 
   log "Ensuring git is installed…"
-  sudo apt-get install -y git
+  sudo apt install git -y
 
   # 1) Attach external disk (NTFS)
   local DISK_REPO_URL="https://github.com/ViliusU/attach-external-disk-drive-on-raspberry-pi.git"
