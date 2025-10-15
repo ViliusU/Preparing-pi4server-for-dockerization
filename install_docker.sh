@@ -47,11 +47,46 @@ apt-get install -y \
 systemctl enable docker
 systemctl start docker
 
-# 8. Add your sudo user to 'docker' group (so you can run docker without sudo)
-if [ -n "${SUDO_USER-}" ] && id "${SUDO_USER}" &>/dev/null; then
-  usermod -aG docker "${SUDO_USER}"
-  echo "→ Added ${SUDO_USER} to the docker group. Log out/in to apply."
+# 8. Add a non-root user to the 'docker' group (so they can run docker without sudo)
+resolve_target_user() {
+  # 1) Explicit override via env
+  if [ -n "${TARGET_USER:-}" ] && id "${TARGET_USER}" &>/dev/null && [ "${TARGET_USER}" != "root" ]; then
+    echo "${TARGET_USER}"; return
+  fi
+  # 2) The sudo caller, if present and not root
+  if [ -n "${SUDO_USER:-}" ] && id "${SUDO_USER}" &>/dev/null && [ "${SUDO_USER}" != "root" ]; then
+    echo "${SUDO_USER}"; return
+  fi
+  # 3) Login name from controlling TTY
+  if login_user="$(logname 2>/dev/null)"; then
+    if [ -n "${login_user}" ] && id "${login_user}" &>/dev/null && [ "${login_user}" != "root" ]; then
+      echo "${login_user}"; return
+    fi
+  fi
+  # 4) Common Debian/RPi: first human user is uid 1000
+  if u1000="$(id -nu 1000 2>/dev/null)"; then
+    if [ -n "${u1000}" ] && [ "${u1000}" != "root" ]; then
+      echo "${u1000}"; return
+    fi
+  fi
+  # 5) As a last resort, try USER if not root
+  if [ -n "${USER:-}" ] && [ "${USER}" != "root" ] && id "${USER}" &>/dev/null; then
+    echo "${USER}"; return
+  fi
+  echo ""
+}
+
+target_user="$(resolve_target_user)"
+if [ -n "${target_user}" ]; then
+  # ensure docker group exists (normally created by the package)
+  getent group docker >/dev/null || groupadd docker || true
+  usermod -aG docker "${target_user}"
+  echo "→ Added ${target_user} to the docker group. Log out/in to apply."
+else
+  echo "→ Skipping docker group membership: no suitable non-root user detected."
+  echo "   Later you can run: sudo usermod -aG docker <username>"
 fi
+
 
 # 9. Verify installation
 echo
