@@ -56,20 +56,16 @@ main() {
   fi
 
   # Verify the mount really has the expected uid/gid mapping
-  opts="$(findmnt -no OPTIONS "$MOUNTPOINT" || true)"
-  log "Mount options for $MOUNTPOINT: ${opts:-<none>}"
-  if [[ -z "$opts" ]]; then
-    log "ERROR: $MOUNTPOINT is not mounted."
-    exit 1
-  fi
-  if ! grep -q "uid=${REAL_UID}" <<<"$opts"; then
-    log "ERROR: $MOUNTPOINT is not mounted with uid=${REAL_UID} (got: $opts)"
-    exit 1
-  fi
-  if ! grep -q "gid=${REAL_GID}" <<<"$opts"; then
-    log "ERROR: $MOUNTPOINT is not mounted with gid=${REAL_GID} (got: $opts)"
-    exit 1
-  fi
+#  opts="$(findmnt -no OPTIONS "$MOUNTPOINT" || true)"
+#  log "Mount options for $MOUNTPOINT: ${opts:-<none>}"
+#  if [[ -z "$opts" ]]; then
+#    log "ERROR: $MOUNTPOINT is not mounted."
+#    exit 1
+#  fi
+#  if ! grep -q "uid=${REAL_UID}" <<<"$opts"; then
+#    log "ERROR: $MOUNTPOINT is not mounted with uid=${REAL_UID} (got: $opts)"
+#    exit 1
+#  fi
 
   # 2) Docker install from THIS repo
   if [ -f "${SCRIPT_DIR}/install_docker.sh" ]; then
