@@ -38,7 +38,20 @@ main() {
   log "Ensuring git is installed…"
   sudo apt install git -y
 
-  # 1) Docker install from this repo
+  # 1) Attach external disk (NTFS)
+  local DISK_REPO_URL="https://github.com/ViliusU/attach-external-disk-drive-on-raspberry-pi.git"
+  local DISK_DEST="${WORKDIR}/attach-external-disk-drive-on-raspberry-pi"
+  clone_or_update "$DISK_REPO_URL" "$DISK_DEST"
+  if [ -f "${DISK_DEST}/attach-external-ntfs.sh" ]; then
+    log "Running attach-external-ntfs.sh…"
+    chmod +x "${DISK_DEST}/attach-external-ntfs.sh"
+    sudo bash "${DISK_DEST}/attach-external-ntfs.sh"
+  else
+    log "ERROR: attach-external-ntfs.sh not found in ${DISK_DEST}"
+    exit 1
+  fi
+
+  # 2) Docker install from this repo
   if [ -f "${SCRIPT_DIR}/install_docker.sh" ]; then
   log "Running install_docker.sh from current repo…"
   chmod +x "${SCRIPT_DIR}/install_docker.sh"
@@ -50,19 +63,6 @@ main() {
   sudo env TARGET_USER="$REAL_USER" bash "${SCRIPT_DIR}/install_docker.sh"
   else
     log "WARNING: install_docker.sh not found in ${SCRIPT_DIR}; skipping."
-  fi
-
-  # 2) Attach external disk (NTFS)
-  local DISK_REPO_URL="https://github.com/ViliusU/attach-external-disk-drive-on-raspberry-pi.git"
-  local DISK_DEST="${WORKDIR}/attach-external-disk-drive-on-raspberry-pi"
-  clone_or_update "$DISK_REPO_URL" "$DISK_DEST"
-  if [ -f "${DISK_DEST}/attach-external-ntfs.sh" ]; then
-    log "Running attach-external-ntfs.sh…"
-    chmod +x "${DISK_DEST}/attach-external-ntfs.sh"
-    sudo bash "${DISK_DEST}/attach-external-ntfs.sh"
-  else
-    log "ERROR: attach-external-ntfs.sh not found in ${DISK_DEST}"
-    exit 1
   fi
 
   # 3) Fan control
