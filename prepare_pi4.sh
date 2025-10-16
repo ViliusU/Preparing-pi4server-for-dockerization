@@ -7,7 +7,7 @@ trap 'code=$?; echo "[ERROR] $(date +"%F %T") Script failed at line $LINENO with
 log() { printf "\n[%s] %s\n" "$(date +'%F %T')" "$*"; }
 
 require_sudo() {
-  if ! sudo -n true 2>/dev/null; then
+  if ! sudo -n true >/dev/null 2>&1; then
     log "Sudo privileges required. You may be prompted for your password…"
     sudo -v
   fi
@@ -31,41 +31,57 @@ clone_or_update() {
 main() {
   require_sudo
 
+  # Real non-root user (works whether script was started with sudo or not)
+  REAL_USER="$(logname 2>/dev/null || echo "${SUDO_USER:-$USER}")"
+  REAL_UID="$(id -u "$REAL_USER")"
+  REAL_GID="$(id -g "$REAL_USER")"
+  MOUNTPOINT="/mnt/external"
+
   log "Updating and upgrading packages…"
   sudo apt-get update
   sudo DEBIAN_FRONTEND=noninteractive apt-get -yq upgrade
 
   log "Ensuring git is installed…"
-  sudo apt install git -y
+  sudo apt-get install -y git
 
-  # 1) Attach external disk (NTFS)
-  local DISK_REPO_URL="https://github.com/ViliusU/attach-external-disk-drive-on-raspberry-pi.git"
-  local DISK_DEST="${WORKDIR}/attach-external-disk-drive-on-raspberry-pi"
-  clone_or_update "$DISK_REPO_URL" "$DISK_DEST"
-  if [ -f "${DISK_DEST}/attach-external-ntfs.sh" ]; then
-    log "Running attach-external-ntfs.sh…"
-    chmod +x "${DISK_DEST}/attach-external-ntfs.sh"
-    sudo bash "${DISK_DEST}/attach-external-ntfs.sh"
+  # 1) Attach external disk (NTFS) — from THIS repo, like install_docker.sh
+  if [ -f "${SCRIPT_DIR}/attach-external-ntfs.sh" ]; then
+    log "Running attach-external-ntfs.sh from current repo…"
+    chmod +x "${SCRIPT_DIR}/attach-external-ntfs.sh"
+    # Pass explicit owner + mountpoint so uid/gid mapping is deterministic
+    sudo bash "${SCRIPT_DIR}/attach-external-ntfs.sh" --owner "$REAL_USER" --mountpoint "$MOUNTPOINT"
   else
-    log "ERROR: attach-external-ntfs.sh not found in ${DISK_DEST}"
+    log "ERROR: attach-external-ntfs.sh not found in ${SCRIPT_DIR}"
     exit 1
   fi
 
-  # 2) Docker install from this repo
+  # Verify the mount really has the expected uid/gid mapping
+  opts="$(findmnt -no OPTIONS "$MOUNTPOINT" || true)"
+  log "Mount options for $MOUNTPOINT: ${opts:-<none>}"
+  if [[ -z "$opts" ]]; then
+    log "ERROR: $MOUNTPOINT is not mounted."
+    exit 1
+  fi
+  if ! grep -q "uid=${REAL_UID}" <<<"$opts"; then
+    log "ERROR: $MOUNTPOINT is not mounted with uid=${REAL_UID} (got: $opts)"
+    exit 1
+  fi
+  if ! grep -q "gid=${REAL_GID}" <<<"$opts"; then
+    log "ERROR: $MOUNTPOINT is not mounted with gid=${REAL_GID} (got: $opts)"
+    exit 1
+  fi
+
+  # 2) Docker install from THIS repo
   if [ -f "${SCRIPT_DIR}/install_docker.sh" ]; then
-  log "Running install_docker.sh from current repo…"
-  chmod +x "${SCRIPT_DIR}/install_docker.sh"
-
-  # Determine the real non-root login user (works whether or not this script was started with sudo)
-  REAL_USER="$(logname 2>/dev/null || echo "${SUDO_USER:-$USER}")"
-
-  # Pass it explicitly to the installer so it never adds 'root' by mistake
-  sudo env TARGET_USER="$REAL_USER" bash "${SCRIPT_DIR}/install_docker.sh"
+    log "Running install_docker.sh from current repo…"
+    chmod +x "${SCRIPT_DIR}/install_docker.sh"
+    # Ensure Docker installs & configures for the real user (not root)
+    sudo env TARGET_USER="$REAL_USER" bash "${SCRIPT_DIR}/install_docker.sh"
   else
     log "WARNING: install_docker.sh not found in ${SCRIPT_DIR}; skipping."
   fi
 
-  # 3) Fan control
+  # 3) Fan control (from GitHub repo)
   local FAN_REPO_URL="https://github.com/ViliusU/Raspberry_Pi_Fan_Control_Setup_for_StromPi3_Case.git"
   local FAN_DEST="${WORKDIR}/Raspberry_Pi_Fan_Control_Setup_for_StromPi3_Case"
   clone_or_update "$FAN_REPO_URL" "$FAN_DEST"
